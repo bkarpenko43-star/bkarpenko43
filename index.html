@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Mobile FPS</title>
+<style>
+  body { margin:0; overflow:hidden; touch-action:none; }
+
+  #ui {
+    position:absolute;
+    width:100%;
+    height:100%;
+  }
+
+  .btn {
+    position:absolute;
+    width:70px;
+    height:70px;
+    background:rgba(0,0,0,0.5);
+    color:white;
+    font-size:20px;
+    text-align:center;
+    line-height:70px;
+    border-radius:50%;
+    user-select:none;
+  }
+
+  #up { bottom:120px; left:80px; }
+  #down { bottom:40px; left:80px; }
+  #left { bottom:80px; left:20px; }
+  #right { bottom:80px; left:140px; }
+
+  #shoot {
+    bottom:60px;
+    right:60px;
+    background:red;
+  }
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <div class="btn" id="up">▲</div>
+  <div class="btn" id="down">▼</div>
+  <div class="btn" id="left">◀</div>
+  <div class="btn" id="right">▶</div>
+  <div class="btn" id="shoot">🔫</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
+
+<script>
+let scene, camera, renderer;
+let enemies = [];
+let bullets = [];
+
+let move = {up:false,down:false,left:false,right:false};
+
+init();
+animate();
+
+function init(){
+
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 1000);
+  camera.position.set(0,1.6,5);
+
+  renderer = new THREE.WebGLRenderer();
+  renderer.setSize(innerWidth, innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  // свет
+  scene.add(new THREE.AmbientLight(0xffffff));
+
+  // пол
+  let floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(100,100),
+    new THREE.MeshBasicMaterial({color:0x888888})
+  );
+  floor.rotation.x = -Math.PI/2;
+  scene.add(floor);
+
+  // враги
+  function enemy(x,z){
+    let e = new THREE.Mesh(
+      new THREE.BoxGeometry(1,1,1),
+      new THREE.MeshBasicMaterial({color:0xff0000})
+    );
+    e.position.set(x,0.5,z);
+    scene.add(e);
+    enemies.push(e);
+  }
+
+  enemy(3,3);
+  enemy(-3,-3);
+
+  // кнопки (телефон)
+  document.getElementById("up").ontouchstart = ()=> move.up=true;
+  document.getElementById("up").ontouchend = ()=> move.up=false;
+
+  document.getElementById("down").ontouchstart = ()=> move.down=true;
+  document.getElementById("down").ontouchend = ()=> move.down=false;
+
+  document.getElementById("left").ontouchstart = ()=> move.left=true;
+  document.getElementById("left").ontouchend = ()=> move.left=false;
+
+  document.getElementById("right").ontouchstart = ()=> move.right=true;
+  document.getElementById("right").ontouchend = ()=> move.right=false;
+
+  document.getElementById("shoot").onclick = shoot;
+
+  // клавиатура (ПК)
+  document.addEventListener("keydown", e=>{
+    if(e.key==="w") move.up=true;
+    if(e.key==="s") move.down=true;
+    if(e.key==="a") move.left=true;
+    if(e.key==="d") move.right=true;
+    if(e.key===" ") shoot();
+  });
+
+  document.addEventListener("keyup", e=>{
+    if(e.key==="w") move.up=false;
+    if(e.key==="s") move.down=false;
+    if(e.key==="a") move.left=false;
+    if(e.key==="d") move.right=false;
+  });
+}
+
+function shoot(){
+  let bullet = new THREE.Mesh(
+    new THREE.SphereGeometry(0.1),
+    new THREE.MeshBasicMaterial({color:0xffff00})
+  );
+
+  bullet.position.copy(camera.position);
+  bullet.dir = new THREE.Vector3(0,0,-1);
+
+  scene.add(bullet);
+  bullets.push(bullet);
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+
+  let speed = 0.1;
+
+  if(move.up) camera.position.z -= speed;
+  if(move.down) camera.position.z += speed;
+  if(move.left) camera.position.x -= speed;
+  if(move.right) camera.position.x += speed;
+
+  // враги идут к игроку
+  enemies.forEach(e=>{
+    let dir = camera.position.clone().sub(e.position).normalize();
+    e.position.addScaledVector(dir, 0.02);
+  });
+
+  // пули
+  bullets.forEach((b,i)=>{
+    b.position.addScaledVector(b.dir, 0.3);
+
+    enemies.forEach((e,ei)=>{
+      if(b.position.distanceTo(e.position) < 0.7){
+        scene.remove(e);
+        enemies.splice(ei,1);
+      }
+    });
+  });
+
+  renderer.render(scene, camera);
+}
+</script>
+
+</body>
+</html>
